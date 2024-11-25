@@ -1,0 +1,45 @@
+type Query {
+  sayHello(name: String!): String!
+  getWorkspaces: [Workspace!]!
+  getWorkspaceNotes(workspaceId: ID!): [Note!]!
+}
+
+type Mutation {
+  # From workspace.ts
+  createWorkspace(name: String!): Workspace!
+}
+
+# Types from models.ts
+type User {
+  id: ID!
+  email: String!
+  firstname: String!
+  lastname: String!
+  created_at: Int!
+  clerkid: String!
+  image: String!
+}
+
+type Workspace {
+  id: ID!
+  name: String!
+  user_id: ID!
+  created_at: Int!
+}
+
+type WorkspaceMember {
+  id: ID!
+  workspace_id: ID!
+  user_id: ID!
+  role: String!
+  created_at: Int!
+}
+
+type Note {
+  id: ID!
+  title: String!
+  content: String!
+  workspace_id: ID!
+  user_id: ID!
+  created_at: Int!
+}

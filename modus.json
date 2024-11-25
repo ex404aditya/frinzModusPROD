@@ -6,5 +6,15 @@
       "path": "/graphql",
       "auth": "bearer-token"
     }
+  },
+  "connections": {
+    "clerk": {
+      "type": "http",
+      "baseUrl": "https://api.clerk.dev/v1/users/"
+    },
+    "frinzdb": {
+      "type": "postgresql",
+      "connString": "postgres://default:Y7KSZRkdFb9e@ep-billowing-water-a4ft6gpq-pooler.us-east-1.aws.neon.tech:5432/verceldb?sslmode=require"
+    }
   }
 }
