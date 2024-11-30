@@ -1,6 +1,4 @@
-import { u8 } from "assemblyscript/std/assembly";
-
-export function bytesToUUID(input: string): string {
+export function convertToUUID(input: string): string {
   // Split the input string into an array of numbers
   const byteArray = input
     .split(",")

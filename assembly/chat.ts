@@ -32,7 +32,8 @@ export function getCurrentUserId(): string {
 
 // Function to process YouTube link and extract text
 export function processYouTubeLink(youtubeUrl: string): string {
-  return convertAudioToText(extractYouTubeAudio(youtubeUrl));
+  const transcriptionResult = extractYouTubeAudio(youtubeUrl); // Assuming this returns an object
+  return convertAudioToText(transcriptionResult); // Ensure this returns a string
 }
 
 // Function to create a new thread with YouTube content
@@ -82,8 +83,11 @@ export function createThreadFromYouTubeLink(youtubeUrl: string): Thread {
   threadParams.push(now);
   threadParams.push(now);
 
-  const thread = executeQuery(threadQuery, threadParams)[0];
+  const threadRows = executeQuery(threadQuery, threadParams); // Now threadRows will be of type Thread[]
+  const thread = threadRows[0]; // Access the first row and assert it as type `Thread`
   thread.id = bytesToUUID(thread.id);
+
+  console.log(`Thread created: ${thread.id}`);
 
   return thread;
 }
@@ -103,7 +107,7 @@ export function getReply(threadId: string, userMessage: string): Message {
   postgresql.query<Message>(dbName, userMessageQuery, userMessageParams);
 
   // Get thread history and initial content for context
-  const thread = getThreadById(threadId);
+  const thread = getThreadById(threadId); // Thread type is inferred here
   const messages = getThreadMessages(threadId);
 
   // Prepare OpenAI request
@@ -177,53 +181,95 @@ export function getReply(threadId: string, userMessage: string): Message {
 // Function to get all threads for the current user
 export function getAllThreads(): Thread[] {
   const userId = getCurrentUserId();
-  const query = `SELECT * FROM threads WHERE clerk_user_id = $1 ORDER BY last_message_at DESC`;
-  const params = new postgresql.Params([userId]);
-  const threads = executeQuery(query, params).map((thread) => {
+
+  const query = `
+    SELECT * FROM threads 
+    WHERE clerk_user_id = $1 
+    ORDER BY last_message_at DESC
+  `;
+
+  const params = new postgresql.Params();
+  params.push(userId);
+
+  const response = postgresql.query<Thread>(dbName, query, params);
+  const threads: Thread[] = [];
+  for (let i = 0; i < response.rows.length; i++) {
+    const thread = response.rows[i];
     thread.id = bytesToUUID(thread.id);
-    return thread;
-  });
+    threads.push(thread);
+  }
   return threads;
 }
 
 // Function to get a specific thread by ID
 export function getThreadById(threadId: string): Thread {
   const userId = getCurrentUserId();
-  const query = `SELECT * FROM threads WHERE id = $1 AND clerk_user_id = $2`;
-  const params = new postgresql.Params([threadId, userId]);
-  const threads = executeQuery(query, params);
-  if (threads.length === 0) {
+
+  const query = `
+    SELECT * FROM threads 
+    WHERE id = $1 AND clerk_user_id = $2
+  `;
+
+  const params = new postgresql.Params();
+  params.push(threadId);
+  params.push(userId);
+
+  const response = postgresql.query<Thread>(dbName, query, params);
+  if (response.rows.length === 0) {
     throw new Error("Thread not found or access denied");
   }
-  const thread = threads[0];
+  const thread = response.rows[0]; // Explicitly casting the result to `Thread`
   thread.id = bytesToUUID(thread.id);
   return thread;
 }
-
 // Function to delete a thread
 export function deleteThread(threadId: string): void {
-  // Verify ownership and delete messages first (due to foreign key constraint)
+  const userId = getCurrentUserId();
+
+  // First verify ownership
   getThreadById(threadId);
 
-  const deleteMessagesQuery = `DELETE FROM messages WHERE thread_id = $1`;
-  const messageParams = new postgresql.Params([threadId]);
-  executeQuery(deleteMessagesQuery, messageParams);
+  // Delete messages first (due to foreign key constraint)
+  const deleteMessagesQuery = `
+      DELETE FROM messages WHERE thread_id = $1
+    `;
 
-  // Then delete the thread
-  const deleteThreadQuery = `DELETE FROM threads WHERE id = $1 AND clerk_user_id = $2`;
-  const threadParams = new postgresql.Params([threadId, getCurrentUserId()]);
-  executeQuery(deleteThreadQuery, threadParams);
+  const messageParams = new postgresql.Params();
+  messageParams.push(threadId);
+  postgresql.query<Message>(dbName, deleteMessagesQuery, messageParams);
+
+  // Then delete thread
+  const deleteThreadQuery = `
+      DELETE FROM threads WHERE id = $1 AND clerk_user_id = $2
+    `;
+
+  const threadParams = new postgresql.Params();
+  threadParams.push(threadId);
+  threadParams.push(userId);
+  postgresql.query<Thread>(dbName, deleteThreadQuery, threadParams);
 }
 
 // Function to get messages for a thread
 export function getThreadMessages(threadId: string): Message[] {
-  getThreadById(threadId); // Verify thread ownership
+  // Verify thread ownership
+  getThreadById(threadId);
 
-  const query = `SELECT * FROM messages WHERE thread_id = $1 ORDER BY created_at ASC`;
-  const params = new postgresql.Params([threadId]);
-  return executeQuery(query, params).map((msg) => {
+  const query = `
+      SELECT * FROM messages 
+      WHERE thread_id = $1 
+      ORDER BY created_at ASC
+    `;
+
+  const params = new postgresql.Params();
+  params.push(threadId);
+
+  const response = postgresql.query<Message>(dbName, query, params);
+  const messages: Message[] = [];
+  for (let i = 0; i < response.rows.length; i++) {
+    const msg = response.rows[i];
     msg.id = bytesToUUID(msg.id);
     msg.thread_id = bytesToUUID(msg.thread_id);
-    return msg;
-  });
+    messages.push(msg);
+  }
+  return messages;
 }
