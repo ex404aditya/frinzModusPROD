@@ -1,4 +1,10 @@
 {
-  "extends": "assemblyscript/std/assembly.json",
+  "compilerOptions": {
+    "target": "es2015", // Target ECMAScript 2015 or later
+    "lib": ["es2015", "dom"], // Add standard library features like Promise
+    "module": "commonjs", // Use CommonJS for Node.js compatibility
+    "strict": true, // Enable strict type-checking
+    "esModuleInterop": true // Allow imports from CommonJS modules
+  },
   "include": ["./**/*.ts"]
 }
