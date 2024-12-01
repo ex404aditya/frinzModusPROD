@@ -5,7 +5,7 @@ import { convertToUUID } from "./utils";
 
 export function getWorkspaces(): Array<Workspace> {
   const user = getCurrentUser();
-  
+
   const query = "SELECT * FROM workspaces WHERE user_id = $1";
   const params = new postgresql.Params();
   params.push(user.id);
@@ -23,13 +23,13 @@ export function getWorkspaces(): Array<Workspace> {
 
 export function createWorkspace(name: string): Workspace {
   const user = getCurrentUser();
-  
+
   const query = `
     INSERT INTO workspaces (name, user_id)
     VALUES ($1, $2)
     RETURNING *
   `;
-  
+
   const params = new postgresql.Params();
   params.push(name);
   params.push(user.id);
@@ -43,13 +43,13 @@ export function createWorkspace(name: string): Workspace {
 
 export function getWorkspaceNotes(workspaceId: UUID): Array<Note> {
   const user = getCurrentUser();
-  
+
   const query = `
     SELECT * FROM notes 
     WHERE workspace_id = $1 AND user_id = $2
     ORDER BY created_at DESC
   `;
-  
+
   const params = new postgresql.Params();
   params.push(workspaceId);
   params.push(user.id);
@@ -66,9 +66,12 @@ export function getWorkspaceNotes(workspaceId: UUID): Array<Note> {
   return notes;
 }
 
-export function createNote(workspaceId: UUID, title: string = "Untitled Note"): Note {
+export function createNote(
+  workspaceId: UUID,
+  title: string = "Untitled Note",
+): Note {
   const user = getCurrentUser();
-  
+
   // Check if user has access to workspace
   const workspaceQuery = `
     SELECT * FROM workspaces 
@@ -77,8 +80,12 @@ export function createNote(workspaceId: UUID, title: string = "Untitled Note"): 
   const workspaceParams = new postgresql.Params();
   workspaceParams.push(workspaceId);
   workspaceParams.push(user.id);
-  
-  const workspaceResponse = postgresql.query<Workspace>("frinzdb", workspaceQuery, workspaceParams);
+
+  const workspaceResponse = postgresql.query<Workspace>(
+    "frinzdb",
+    workspaceQuery,
+    workspaceParams,
+  );
   if (workspaceResponse.rows.length === 0) {
     throw new Error("Workspace not found or access denied");
   }
@@ -88,7 +95,7 @@ export function createNote(workspaceId: UUID, title: string = "Untitled Note"): 
     VALUES ($1, $2, $3)
     RETURNING *
   `;
-  
+
   const params = new postgresql.Params();
   params.push(title);
   params.push(workspaceId);
@@ -114,7 +121,11 @@ export function updateNote(noteId: UUID, title: string, content: string): Note {
   existingNoteParams.push(noteId);
   existingNoteParams.push(user.id);
 
-  const existingNoteResponse = postgresql.query<Note>("frinzdb", existingNoteQuery, existingNoteParams);
+  const existingNoteResponse = postgresql.query<Note>(
+    "frinzdb",
+    existingNoteQuery,
+    existingNoteParams,
+  );
   if (existingNoteResponse.rows.length === 0) {
     throw new Error("Note not found or access denied");
   }
@@ -125,7 +136,7 @@ export function updateNote(noteId: UUID, title: string, content: string): Note {
     WHERE id = $3 AND user_id = $4
     RETURNING *
   `;
-  
+
   const params = new postgresql.Params();
   params.push(title);
   params.push(content);
@@ -136,7 +147,7 @@ export function updateNote(noteId: UUID, title: string, content: string): Note {
   if (response.rows.length === 0) {
     throw new Error("Failed to update note");
   }
-  
+
   const note = response.rows[0];
   note.id = convertToUUID(note.id);
   note.workspace_id = convertToUUID(note.workspace_id);
@@ -156,7 +167,11 @@ export function deleteNote(noteId: UUID): void {
   existingNoteParams.push(noteId);
   existingNoteParams.push(user.id);
 
-  const existingNoteResponse = postgresql.query<Note>("frinzdb", existingNoteQuery, existingNoteParams);
+  const existingNoteResponse = postgresql.query<Note>(
+    "frinzdb",
+    existingNoteQuery,
+    existingNoteParams,
+  );
   if (existingNoteResponse.rows.length === 0) {
     throw new Error("Note not found or access denied");
   }
@@ -166,7 +181,7 @@ export function deleteNote(noteId: UUID): void {
     WHERE id = $1 AND user_id = $2
     RETURNING id
   `;
-  
+
   const params = new postgresql.Params();
   params.push(noteId);
   params.push(user.id);
@@ -184,7 +199,7 @@ export function getNote(noteId: UUID): Note {
     SELECT * FROM notes
     WHERE id = $1 AND user_id = $2
   `;
-  
+
   const params = new postgresql.Params();
   params.push(noteId);
   params.push(user.id);
@@ -223,7 +238,7 @@ export function verifyWorkspaceAccess(workspaceId: UUID): Workspace {
   const workspace = response.rows[0];
   workspace.id = convertToUUID(workspace.id);
   workspace.user_id = convertToUUID(workspace.user_id);
-  
+
   // Check if the current user is the workspace owner
   if (workspace.user_id !== user.id) {
     throw new Error("Access denied");
